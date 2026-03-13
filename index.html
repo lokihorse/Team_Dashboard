@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team Assignment Dashboard</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    button { cursor: pointer; }
+    input, textarea, select { font-family: inherit; }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    /* ===== LAYOUT ===== */
+    #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ===== TOP NAV ===== */
+    .topnav {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a5f 100%);
+      padding: 0 24px;
+      display: flex; align-items: center; gap: 16px;
+      height: 60px; position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+    }
+    .topnav-logo { font-size: 20px; font-weight: 700; color: #a5b4fc; letter-spacing: -0.5px; flex: 1; }
+    .topnav-logo span { color: #f8fafc; }
+
+    /* ===== BANNER ===== */
+    .banner {
+      background: linear-gradient(90deg, #dc2626, #b91c1c);
+      color: #fff; padding: 10px 24px;
+      display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500;
+    }
+    .banner-close { margin-left: auto; background: none; border: none; color: #fff; font-size: 18px; line-height: 1; }
+
+    /* ===== TAB NAV ===== */
+    .tab-nav {
+      background: #1e293b; border-bottom: 1px solid #334155;
+      display: flex; gap: 4px; padding: 8px 24px 0;
+    }
+    .tab-btn {
+      background: none; border: none; color: #94a3b8;
+      padding: 8px 18px; font-size: 14px; font-weight: 500;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+      border-radius: 6px 6px 0 0;
+    }
+    .tab-btn:hover { color: #e2e8f0; background: #0f172a22; }
+    .tab-btn.active { color: #a5b4fc; border-bottom-color: #6366f1; background: #0f172a33; }
+
+    /* ===== MAIN CONTENT ===== */
+    .main { flex: 1; padding: 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* ===== STAT CARDS ===== */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid #334155; border-radius: 12px; padding: 20px;
+      text-align: center; position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .stat-card.blue::before { background: linear-gradient(90deg, #3b82f6, #6366f1); }
+    .stat-card.yellow::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .stat-card.red::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .stat-card.green::before { background: linear-gradient(90deg, #10b981, #059669); }
+    .stat-number { font-size: 36px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+    .stat-card.blue .stat-number { color: #60a5fa; }
+    .stat-card.yellow .stat-number { color: #fbbf24; }
+    .stat-card.red .stat-number { color: #f87171; }
+    .stat-card.green .stat-number { color: #34d399; }
+    .stat-label { font-size: 13px; color: #94a3b8; font-weight: 500; }
+
+    /* ===== SECTION HEADER ===== */
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .section-title { font-size: 18px; font-weight: 600; color: #e2e8f0; }
+    .view-toggle { display: flex; gap: 4px; margin-left: auto; }
+    .view-btn {
+      background: #0f172a; border: 1px solid #334155; color: #94a3b8;
+      padding: 6px 12px; border-radius: 6px; font-size: 13px; transition: all 0.2s;
+    }
+    .view-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; font-size: 14px;
+      font-weight: 500; border: none; transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; }
+    .btn-primary:hover { background: linear-gradient(135deg, #818cf8, #6366f1); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-secondary { background: #334155; color: #e2e8f0; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-ghost { background: none; border: 1px solid #334155; color: #94a3b8; }
+    .btn-ghost:hover { background: #1e293b; color: #e2e8f0; }
+
+    /* ===== FORM ===== */
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 6px; }
+    .form-control {
+      width: 100%; padding: 9px 12px; background: #0f172a;
+      border: 1px solid #334155; border-radius: 8px; color: #e2e8f0;
+      font-size: 14px; transition: border-color 0.2s;
+    }
+    .form-control:focus { outline: none; border-color: #6366f1; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ===== ADD TASK FORM ===== */
+    .add-task-form {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 20px; margin-bottom: 24px;
+    }
+    .add-task-form h3 { font-size: 16px; font-weight: 600; color: #e2e8f0; margin-bottom: 16px; }
+
+    /* ===== KANBAN ===== */
+    .kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .kanban-col { background: #0f172a; border-radius: 12px; padding: 12px; min-height: 400px; }
+    .kanban-col-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 4px; margin-bottom: 12px; border-bottom: 2px solid #1e293b;
+    }
+    .kanban-col-title { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+    .kanban-col-count {
+      background: #1e293b; color: #94a3b8;
+      border-radius: 20px; padding: 2px 8px; font-size: 12px; font-weight: 600;
+    }
+    .kanban-col.todo .kanban-col-title { color: #94a3b8; }
+    .kanban-col.inprogress .kanban-col-title { color: #60a5fa; }
+    .kanban-col.completed .kanban-col-title { color: #34d399; }
+
+    /* ===== TASK CARD ===== */
+    .task-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: 14px; margin-bottom: 10px;
+      cursor: pointer; transition: all 0.2s; position: relative;
+    }
+    .task-card:hover { border-color: #6366f1; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+    .task-card-title { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; line-height: 1.4; }
+    .task-card-desc { font-size: 12px; color: #64748b; margin-bottom: 10px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .task-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .task-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+
+    /* ===== PRIORITY BADGE ===== */
+    .priority-badge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .priority-high { background: #dc262622; color: #f87171; border: 1px solid #dc262644; }
+    .priority-medium { background: #f59e0b22; color: #fbbf24; border: 1px solid #f59e0b44; }
+    .priority-low { background: #10b98122; color: #34d399; border: 1px solid #10b98144; }
+
+    /* ===== STATUS BADGE ===== */
+    .status-badge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; text-transform: capitalize;
+    }
+    .status-todo { background: #33415533; color: #94a3b8; border: 1px solid #475569; }
+    .status-inprogress { background: #3b82f622; color: #60a5fa; border: 1px solid #3b82f644; }
+    .status-completed { background: #10b98122; color: #34d399; border: 1px solid #10b98144; }
+
+    /* ===== AVATAR ===== */
+    .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .avatar-lg { width: 40px; height: 40px; font-size: 15px; }
+    .avatar-xl { width: 52px; height: 52px; font-size: 20px; }
+
+    /* ===== DUE DATE ===== */
+    .due-date { font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 4px; }
+    .due-date.overdue { color: #f87171; }
+    .due-date.soon { color: #fbbf24; }
+
+    /* ===== TAG ===== */
+    .tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; text-transform: lowercase;
+    }
+    .tag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ===== GRID VIEW ===== */
+    .grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+    /* ===== PRIORITY LIST ===== */
+    .priority-list { display: flex; flex-direction: column; gap: 10px; }
+    .priority-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px; background: #0f172a; border-radius: 8px;
+      border: 1px solid #1e293b; cursor: pointer; transition: all 0.2s;
+    }
+    .priority-item:hover { border-color: #6366f1; }
+    .priority-item-rank { font-size: 13px; font-weight: 700; color: #475569; width: 24px; text-align: center; }
+    .priority-item-info { flex: 1; min-width: 0; }
+    .priority-item-title { font-size: 14px; font-weight: 500; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .priority-item-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+    /* ===== TEAM MEMBER CARD ===== */
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .member-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 20px; text-align: center;
+      position: relative; transition: all 0.2s;
+    }
+    .member-card:hover { border-color: #6366f1; }
+    .member-name { font-size: 15px; font-weight: 600; color: #e2e8f0; margin: 10px 0 4px; }
+    .member-role { font-size: 12px; color: #94a3b8; }
+    .member-email { font-size: 12px; color: #64748b; margin-top: 4px; word-break: break-all; }
+    .member-delete { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #475569; font-size: 16px; transition: color 0.2s; }
+    .member-delete:hover { color: #f87171; }
+
+    /* ===== NOTIFICATION ===== */
+    .notif-list { display: flex; flex-direction: column; gap: 8px; }
+    .notif-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px; background: #0f172a; border-radius: 8px;
+      border-left: 3px solid #6366f1; cursor: pointer; transition: all 0.2s;
+    }
+    .notif-item.read { border-left-color: #334155; opacity: 0.7; }
+    .notif-text { font-size: 13px; color: #e2e8f0; line-height: 1.5; flex: 1; }
+    .notif-time { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; flex-shrink: 0; margin-top: 4px; }
+    .notif-read-dot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex-shrink: 0; }
+
+    /* ===== UNREAD BADGE ===== */
+    .badge-count {
+      background: #ef4444; color: #fff;
+      border-radius: 20px; font-size: 11px; font-weight: 700;
+      padding: 1px 6px; min-width: 18px; text-align: center;
+    }
+
+    /* ===== OVERDUE FLOATING BADGE ===== */
+    .overdue-badge {
+      position: fixed; bottom: 24px; right: 24px;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #fff; border-radius: 50px; padding: 12px 20px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 8px 24px rgba(239,68,68,0.4);
+      display: flex; align-items: center; gap: 8px;
+      z-index: 90; transition: transform 0.2s;
+    }
+    .overdue-badge:hover { transform: scale(1.05); }
+
+    /* ===== ACTIVITY LOG ===== */
+    .activity-list { display: flex; flex-direction: column; gap: 10px; }
+    .activity-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px; background: #0f172a; border-radius: 8px;
+    }
+    .activity-icon {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #1e293b; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .activity-content { flex: 1; }
+    .activity-text { font-size: 13px; color: #e2e8f0; line-height: 1.5; }
+    .activity-time { font-size: 11px; color: #64748b; margin-top: 3px; }
+
+    /* ===== TAGS MANAGER ===== */
+    .tags-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; padding: 16px;
+    }
+    .modal {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 16px; width: 100%; max-width: 700px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 20px 24px; border-bottom: 1px solid #334155;
+      position: sticky; top: 0; background: #1e293b; z-index: 1;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; color: #e2e8f0; flex: 1; }
+    .modal-close { background: none; border: none; color: #64748b; font-size: 22px; transition: color 0.2s; }
+    .modal-close:hover { color: #e2e8f0; }
+    .modal-body { padding: 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #334155; display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* ===== MODAL SECTIONS ===== */
+    .modal-section { margin-bottom: 24px; }
+    .modal-section-title {
+      font-size: 13px; font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .modal-section-title::after { content: ''; flex: 1; height: 1px; background: #334155; }
+
+    /* ===== NOTE CARD ===== */
+    .note-card {
+      background: #0f172a; border-radius: 8px; padding: 12px;
+      margin-bottom: 8px; border-left: 3px solid #6366f1;
+    }
+    .note-text { font-size: 13px; color: #e2e8f0; line-height: 1.6; }
+    .note-meta { font-size: 11px; color: #64748b; margin-top: 6px; }
+
+    /* ===== SUBTASK ===== */
+    .subtask-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid #1e293b;
+    }
+    .subtask-item:last-child { border-bottom: none; }
+    .subtask-check {
+      width: 18px; height: 18px; border-radius: 4px;
+      border: 2px solid #475569; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all 0.2s;
+    }
+    .subtask-check.done { background: #10b981; border-color: #10b981; }
+    .subtask-title { font-size: 13px; color: #e2e8f0; flex: 1; }
+    .subtask-title.done { text-decoration: line-through; color: #64748b; }
+    .subtask-progress { margin-top: 8px; }
+    .progress-bar { height: 4px; background: #334155; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #059669); border-radius: 2px; transition: width 0.3s; }
+
+    /* ===== DETAILS ROW ===== */
+    .detail-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #1e293b; }
+    .detail-label { font-size: 13px; color: #64748b; width: 120px; flex-shrink: 0; }
+    .detail-value { font-size: 13px; color: #e2e8f0; flex: 1; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .kanban { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .main { padding: 12px; }
+      .topnav { padding: 0 12px; }
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty { text-align: center; padding: 40px; color: #475569; }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-text { font-size: 14px; }
+
+    /* ===== UTILS ===== */
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .gap-8 { gap: 8px; }
+    .gap-12 { gap: 12px; }
+    .mb-8 { margin-bottom: 8px; }
+    .mb-16 { margin-bottom: 16px; }
+    .text-sm { font-size: 13px; }
+    .text-xs { font-size: 11px; }
+    .text-muted { color: #64748b; }
+    .text-danger { color: #f87171; }
+    .w-full { width: 100%; }
+    .mt-auto { margin-top: auto; }
+
+    /* ===== SPINNER ===== */
+    .spinner {
+      display: inline-block; width: 20px; height: 20px;
+      border: 2px solid #334155; border-top-color: #6366f1;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== FADE TRANSITION ===== */
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+    /* ===== EDITABLE DATE ===== */
+    .editable-date { display: flex; align-items: center; gap: 8px; }
+    .inline-edit { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 4px 8px; color: #e2e8f0; font-size: 13px; }
+    .inline-edit:focus { outline: none; border-color: #6366f1; }
+
+    /* ===== LOADING OVERLAY ===== */
+    .loading-overlay {
+      position: fixed; inset: 0;
+      background: #0f172a; display: flex; align-items: center; justify-content: center;
+      z-index: 9999; flex-direction: column; gap: 16px;
+    }
+    .loading-text { color: #94a3b8; font-size: 15px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Loading -->
+  <div v-if="loading" class="loading-overlay">
+    <div class="spinner" style="width:40px;height:40px;"></div>
+    <div class="loading-text">Loading Dashboard...</div>
+  </div>
+
+  <template v-else>
+    <!-- Banner -->
+    <transition name="fade">
+      <div v-if="showBanner && myOverdueCount > 0" class="banner">
+        <span>⚠️</span>
+        <span>You have <strong>{{ myOverdueCount }}</strong> overdue task{{ myOverdueCount !== 1 ? 's' : '' }}! Please review immediately.</span>
+        <button class="banner-close" @click="showBanner = false">✕</button>
+      </div>
+    </transition>
+
+    <!-- Top Nav -->
+    <nav class="topnav">
+      <div class="topnav-logo">Team <span>Dashboard</span></div>
+
+      <!-- Current User Selector -->
+      <select v-model="currentUserId" class="form-control" style="width:160px;padding:5px 10px;font-size:13px;">
+        <option value="">— Select User —</option>
+        <option v-for="m in teamMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
+      </select>
+
+      <!-- Notifications Badge -->
+      <div style="position:relative;">
+        <button class="btn btn-ghost btn-sm" @click="activeTab = 'notifications'" style="position:relative;">
+          🔔
+          <span v-if="unreadCount > 0" class="badge-count" style="position:absolute;top:-6px;right:-6px;">{{ unreadCount }}</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Tab Nav -->
+    <div class="tab-nav">
+      <button
+        v-for="t in tabs" :key="t.id"
+        class="tab-btn" :class="{ active: activeTab === t.id }"
+        @click="activeTab = t.id"
+      >{{ t.label }}</button>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+
+      <!-- ===== MY DASHBOARD ===== -->
+      <div v-if="activeTab === 'dashboard'">
+        <div class="section-header">
+          <h2 class="section-title">My Dashboard</h2>
+          <span v-if="currentUserId" class="text-sm text-muted">Viewing as: <strong style="color:#a5b4fc;">{{ currentUserName }}</strong></span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-number">{{ myTasksCount }}</div>
+            <div class="stat-label">Total Tasks</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-number">{{ myInProgressCount }}</div>
+            <div class="stat-label">In Progress</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-number">{{ myOverdueCount }}</div>
+            <div class="stat-label">Overdue</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-number">{{ myDueSoonCount }}</div>
+            <div class="stat-label">Due This Week</div>
+          </div>
+        </div>
+
+        <!-- Priority Tasks -->
+        <div class="card">
+          <div class="section-header" style="margin-bottom:12px;">
+            <h3 class="section-title" style="font-size:15px;">🔥 Priority Tasks</h3>
+            <span class="text-xs text-muted">Top {{ myPriorityTasks.length }} urgent tasks</span>
+          </div>
+          <div v-if="myPriorityTasks.length === 0" class="empty">
+            <div class="empty-icon">✅</div>
+            <div class="empty-text">No urgent tasks. Great job!</div>
+          </div>
+          <div v-else class="priority-list">
+            <div
+              v-for="(task, i) in myPriorityTasks" :key="task.id"
+              class="priority-item"
+              @click="openTaskModal(task)"
+            >
+              <div class="priority-item-rank">#{{ i+1 }}</div>
+              <div class="priority-item-info">
+                <div class="priority-item-title">{{ task.title }}</div>
+                <div class="priority-item-sub">
+                  <span :class="'priority-badge priority-' + task.priority">{{ task.priority }}</span>
+                  <span class="text-xs text-muted" style="margin-left:8px;">{{ formatDate(task.dueDate) }}</span>
+                </div>
+              </div>
+              <span :class="'status-badge status-' + normalizeStatus(task.status)">{{ task.status }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== KANBAN / GRID ===== -->
+      <div v-if="activeTab === 'tasks'">
+        <div class="section-header">
+          <h2 class="section-title">Task Board</h2>
+          <div class="view-toggle">
+            <button class="view-btn" :class="{active: taskView==='kanban'}" @click="taskView='kanban'">⬛ Kanban</button>
+            <button class="view-btn" :class="{active: taskView==='grid'}" @click="taskView='grid'">🔲 Grid</button>
+          </div>
+        </div>
+
+        <!-- Add Task Form -->
+        <div class="add-task-form">
+          <h3>➕ Add New Task</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Title *</label>
+              <input v-model="newTask.title" class="form-control" placeholder="Task title..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Assignee</label>
+              <select v-model="newTask.assignedTo" class="form-control">
+                <option value="">Unassigned</option>
+                <option v-for="m in teamMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea v-model="newTask.description" class="form-control" rows="2" placeholder="Description..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select v-model="newTask.priority" class="form-control">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Due Date</label>
+              <input type="date" v-model="newTask.dueDate" class="form-control" />
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-primary" @click="addAssignment" :disabled="!newTask.title.trim()">
+              <span v-if="saving" class="spinner"></span>
+              <span v-else>+ Add Task</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- KANBAN VIEW -->
+        <div v-if="taskView === 'kanban'" class="kanban">
+          <!-- To Do -->
+          <div class="kanban-col todo">
+            <div class="kanban-col-header">
+              <span class="kanban-col-title">📋 To Do</span>
+              <span class="kanban-col-count">{{ getTodoTasks.length }}</span>
+            </div>
+            <div v-if="getTodoTasks.length === 0" class="empty" style="padding:24px;">
+              <div class="empty-text">No tasks here</div>
+            </div>
+            <div v-for="task in getTodoTasks" :key="task.id">
+              <div class="task-card" @click="openTaskModal(task)">
+                <div class="task-card-title">{{ task.title }}</div>
+                <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+                <div class="task-card-meta">
+                  <span :class="'priority-badge priority-' + task.priority">{{ task.priority }}</span>
+                  <span v-if="task.dueDate" :class="['due-date', isDueOverdue(task.dueDate) ? 'overdue' : isDueSoon(task.dueDate) ? 'soon' : '']">
+                    📅 {{ formatDate(task.dueDate) }}
+                  </span>
+                </div>
+                <div class="task-card-footer">
+                  <div class="flex gap-8">
+                    <span v-for="tag in getTaskTags(task.id)" :key="tag.id" class="tag" :style="{background: tag.color+'22', color: tag.color, border: '1px solid '+tag.color+'44'}">
+                      <span class="tag-dot" :style="{background: tag.color}"></span>{{ tag.name }}
+                    </span>
+                  </div>
+                  <div class="flex gap-8 items-center">
+                    <div v-if="getAssignee(task.assignedTo)" class="avatar" :style="{background: getAvatarColor(task.assignedTo)}" :title="getAssignee(task.assignedTo)?.name">
+                      {{ initials(getAssignee(task.assignedTo)?.name) }}
+                    </div>
+                    <button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa;border:none;padding:4px 8px;font-size:11px;" @click.stop="cycleStatus(task)">▶</button>
+                    <button class="btn btn-sm btn-danger" style="padding:4px 8px;font-size:11px;" @click.stop="deleteAssignment(task.id)">🗑</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- In Progress -->
+          <div class="kanban-col inprogress">
+            <div class="kanban-col-header">
+              <span class="kanban-col-title">⚡ In Progress</span>
+              <span class="kanban-col-count">{{ getInProgressTasks.length }}</span>
+            </div>
+            <div v-if="getInProgressTasks.length === 0" class="empty" style="padding:24px;">
+              <div class="empty-text">No tasks in progress</div>
+            </div>
+            <div v-for="task in getInProgressTasks" :key="task.id">
+              <div class="task-card" @click="openTaskModal(task)">
+                <div class="task-card-title">{{ task.title }}</div>
+                <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+                <div class="task-card-meta">
+                  <span :class="'priority-badge priority-' + task.priority">{{ task.priority }}</span>
+                  <span v-if="task.dueDate" :class="['due-date', isDueOverdue(task.dueDate) ? 'overdue' : isDueSoon(task.dueDate) ? 'soon' : '']">
+                    📅 {{ formatDate(task.dueDate) }}
+                  </span>
+                </div>
+                <div class="task-card-footer">
+                  <div class="flex gap-8">
+                    <span v-for="tag in getTaskTags(task.id)" :key="tag.id" class="tag" :style="{background: tag.color+'22', color: tag.color, border: '1px solid '+tag.color+'44'}">
+                      <span class="tag-dot" :style="{background: tag.color}"></span>{{ tag.name }}
+                    </span>
+                  </div>
+                  <div class="flex gap-8 items-center">
+                    <div v-if="getAssignee(task.assignedTo)" class="avatar" :style="{background: getAvatarColor(task.assignedTo)}" :title="getAssignee(task.assignedTo)?.name">
+                      {{ initials(getAssignee(task.assignedTo)?.name) }}
+                    </div>
+                    <button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa;border:none;padding:4px 8px;font-size:11px;" @click.stop="cycleStatus(task)">▶</button>
+                    <button class="btn btn-sm btn-danger" style="padding:4px 8px;font-size:11px;" @click.stop="deleteAssignment(task.id)">🗑</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completed -->
+          <div class="kanban-col completed">
+            <div class="kanban-col-header">
+              <span class="kanban-col-title">✅ Completed</span>
+              <span class="kanban-col-count">{{ getCompletedTasks.length }}</span>
+            </div>
+            <div v-if="getCompletedTasks.length === 0" class="empty" style="padding:24px;">
+              <div class="empty-text">No completed tasks</div>
+            </div>
+            <div v-for="task in getCompletedTasks" :key="task.id">
+              <div class="task-card" @click="openTaskModal(task)" style="opacity:0.8;">
+                <div class="task-card-title" style="text-decoration:line-through;color:#64748b;">{{ task.title }}</div>
+                <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+                <div class="task-card-meta">
+                  <span :class="'priority-badge priority-' + task.priority">{{ task.priority }}</span>
+                </div>
+                <div class="task-card-footer">
+                  <div class="flex gap-8">
+                    <span v-for="tag in getTaskTags(task.id)" :key="tag.id" class="tag" :style="{background: tag.color+'22', color: tag.color, border: '1px solid '+tag.color+'44'}">
+                      <span class="tag-dot" :style="{background: tag.color}"></span>{{ tag.name }}
+                    </span>
+                  </div>
+                  <div class="flex gap-8 items-center">
+                    <div v-if="getAssignee(task.assignedTo)" class="avatar" :style="{background: getAvatarColor(task.assignedTo)}">
+                      {{ initials(getAssignee(task.assignedTo)?.name) }}
+                    </div>
+                    <button class="btn btn-sm btn-danger" style="padding:4px 8px;font-size:11px;" @click.stop="deleteAssignment(task.id)">🗑</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRID VIEW -->
+        <div v-if="taskView === 'grid'" class="grid-view">
+          <div v-if="assignments.length === 0" class="empty" style="grid-column:1/-1;">
+            <div class="empty-icon">📋</div>
+            <div class="empty-text">No tasks yet. Add one above!</div>
+          </div>
+          <div v-for="task in assignments" :key="task.id" class="task-card" @click="openTaskModal(task)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+              <span :class="'status-badge status-' + normalizeStatus(task.status)">{{ task.status }}</span>
+              <span :class="'priority-badge priority-' + task.priority">{{ task.priority }}</span>
+            </div>
+            <div class="task-card-title">{{ task.title }}</div>
+            <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+            <div class="flex gap-8" style="flex-wrap:wrap;margin-top:8px;">
+              <span v-for="tag in getTaskTags(task.id)" :key="tag.id" class="tag" :style="{background: tag.color+'22', color: tag.color, border: '1px solid '+tag.color+'44'}">
+                <span class="tag-dot" :style="{background: tag.color}"></span>{{ tag.name }}
+              </span>
+            </div>
+            <div class="task-card-footer" style="margin-top:12px;">
+              <div v-if="getAssignee(task.assignedTo)" class="flex items-center gap-8">
+                <div class="avatar" :style="{background: getAvatarColor(task.assignedTo)}">
+                  {{ initials(getAssignee(task.assignedTo)?.name) }}
+                </div>
+                <span class="text-xs text-muted">{{ getAssignee(task.assignedTo)?.name }}</span>
+              </div>
+              <div v-else class="text-xs text-muted">Unassigned</div>
+              <div class="flex gap-8">
+                <button class="btn btn-sm" style="background:#1e3a5f;color:#60a5fa;border:none;padding:4px 8px;font-size:11px;" @click.stop="cycleStatus(task)">▶ Next</button>
+                <button class="btn btn-sm btn-danger" style="padding:4px 8px;font-size:11px;" @click.stop="deleteAssignment(task.id)">🗑</button>
+              </div>
+            </div>
+            <div v-if="task.dueDate" :class="['due-date', isDueOverdue(task.dueDate) ? 'overdue' : isDueSoon(task.dueDate) ? 'soon' : '']" style="margin-top:8px;">
+              📅 {{ formatDate(task.dueDate) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TEAM ===== -->
+      <div v-if="activeTab === 'team'">
+        <div class="section-header">
+          <h2 class="section-title">Team Members</h2>
+        </div>
+
+        <!-- Add Member Form -->
+        <div class="add-task-form" style="margin-bottom:24px;">
+          <h3>➕ Add Team Member</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Name *</label>
+              <input v-model="newMember.name" class="form-control" placeholder="Full name..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <input v-model="newMember.role" class="form-control" placeholder="e.g. Developer..." />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" v-model="newMember.email" class="form-control" placeholder="email@example.com" />
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" @click="addMember" :disabled="!newMember.name.trim()">+ Add Member</button>
+          </div>
+        </div>
+
+        <div v-if="teamMembers.length === 0" class="empty">
+          <div class="empty-icon">👥</div>
+          <div class="empty-text">No team members yet.</div>
+        </div>
+        <div v-else class="team-grid">
+          <div v-for="m in teamMembers" :key="m.id" class="member-card">
+            <button class="member-delete" @click="deleteMember(m.id)" title="Remove member">✕</button>
+            <div class="avatar avatar-xl" style="margin:0 auto;" :style="{background: getAvatarColor(m.id)}">
+              {{ initials(m.name) }}
+            </div>
+            <div class="member-name">{{ m.name }}</div>
+            <div v-if="m.role" class="member-role">{{ m.role }}</div>
+            <div v-if="m.email" class="member-email">{{ m.email }}</div>
+            <div style="margin-top:12px;">
+              <span class="text-xs text-muted">{{ memberTaskCount(m.id) }} task{{ memberTaskCount(m.id) !== 1 ? 's' : '' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TAGS ===== -->
+      <div v-if="activeTab === 'tags'">
+        <div class="section-header">
+          <h2 class="section-title">Tags Manager</h2>
+        </div>
+        <div class="add-task-form">
+          <h3>➕ Create Tag</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tag Name *</label>
+              <input v-model="newTag.name" class="form-control" placeholder="Tag name..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Color</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="color" v-model="newTag.color" style="width:48px;height:38px;border:none;background:none;cursor:pointer;border-radius:6px;" />
+                <input v-model="newTag.color" class="form-control" placeholder="#6366f1" style="flex:1;" />
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" @click="addTag" :disabled="!newTag.name.trim()">+ Create Tag</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="section-title" style="margin-bottom:12px;">All Tags</div>
+          <div v-if="tags.length === 0" class="empty">
+            <div class="empty-icon">🏷️</div>
+            <div class="empty-text">No tags yet.</div>
+          </div>
+          <div class="tags-grid">
+            <div v-for="tag in tags" :key="tag.id" style="display:flex;align-items:center;gap:6px;">
+              <span class="tag" :style="{background: tag.color+'22', color: tag.color, border: '1px solid '+tag.color+'44', fontSize:'13px', padding:'4px 12px'}">
+                <span class="tag-dot" :style="{background: tag.color}"></span>{{ tag.name }}
+              </span>
+              <button class="btn btn-sm btn-danger" style="padding:3px 7px;" @click="deleteTag(tag.id)">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ACTIVITY LOG ===== -->
+      <div v-if="activeTab === 'activity'">
+        <div class="section-header">
+          <h2 class="section-title">Activity Log</h2>
+          <span class="text-sm text-muted">All team activity</span>
+        </div>
+        <div class="card">
+          <div v-if="activityLog.length === 0" class="empty">
+            <div class="empty-icon">📋</div>
+            <div class="empty-text">No activity recorded yet.</div>
+          </div>
+          <div v-else class="activity-list">
+            <div v-for="entry in activityLog" :key="entry.id" class="activity-item">
+              <div class="activity-icon">{{ getActivityIcon(entry.action) }}</div>
+              <div class="activity-content">
+                <div class="activity-text">
+                  <strong style="color:#a5b4fc;">{{ getMemberName(entry.userId) }}</strong>
+                  {{ entry.action }}
+                  <span v-if="entry.details" style="color:#94a3b8;"> — {{ entry.details }}</span>
+                </div>
+                <div class="activity-time">{{ formatDateTime(entry.createdAt) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== NOTIFICATIONS ===== -->
+      <div v-if="activeTab === 'notifications'">
+        <div class="section-header">
+          <h2 class="section-title">Notifications</h2>
+          <button v-if="unreadCount > 0" class="btn btn-sm btn-secondary" @click="markAllRead">Mark all read</button>
+        </div>
+        <div class="card">
+          <div v-if="notifications.length === 0" class="empty">
+            <div class="empty-icon">🔔</div>
+            <div class="empty-text">No notifications.</div>
+          </div>
+          <div v-else class="notif-list">
+            <div
+              v-for="n in notifications" :key="n.id"
+              class="notif-item" :class="{read: n.read}"
+              @click="markRead(n)"
+            >
+              <div :class="n.read ? 'notif-read-dot' : 'notif-dot'"></div>
+              <div style="flex:1;">
+                <div class="notif-text">{{ n.message }}</div>
+                <div class="notif-time">{{ formatDateTime(n.createdAt) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+
+    <!-- ===== TASK DETAIL MODAL ===== -->
+    <transition name="fade">
+      <div v-if="selectedTask" class="modal-overlay" @click.self="selectedTask = null">
+        <div class="modal">
+          <div class="modal-header">
+            <div style="flex:1;">
+              <div class="modal-title">{{ selectedTask.title }}</div>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <span :class="'status-badge status-' + normalizeStatus(selectedTask.status)">{{ selectedTask.status }}</span>
+                <span :class="'priority-badge priority-' + selectedTask.priority">{{ selectedTask.priority }}</span>
+              </div>
+            </div>
+            <button class="modal-close" @click="selectedTask = null">✕</button>
+          </div>
+          <div class="modal-body">
+
+            <!-- Details -->
+            <div class="modal-section">
+              <div class="modal-section-title">Details</div>
+              <div class="detail-row">
+                <span class="detail-label">Description</span>
+                <span class="detail-value">{{ selectedTask.description || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Assignee</span>
+                <span class="detail-value">
+                  <div v-if="getAssignee(selectedTask.assignedTo)" class="flex items-center gap-8">
+                    <div class="avatar" :style="{background: getAvatarColor(selectedTask.assignedTo)}">{{ initials(getAssignee(selectedTask.assignedTo)?.name) }}</div>
+                    {{ getAssignee(selectedTask.assignedTo)?.name }}
+                  </div>
+                  <span v-else>Unassigned</span>
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Due Date</span>
+                <span class="detail-value">
+                  <div class="editable-date">
+                    <span v-if="!editingDueDate">
+                      {{ selectedTask.dueDate ? formatDate(selectedTask.dueDate) : '—' }}
+                      <button class="btn btn-ghost btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px;" @click="startEditDueDate">✏️ Edit</button>
+                    </span>
+                    <span v-else style="display:flex;align-items:center;gap:8px;">
+                      <input type="date" v-model="editDueDateValue" class="inline-edit" />
+                      <button class="btn btn-primary btn-sm" @click="saveDueDate">Save</button>
+                      <button class="btn btn-secondary btn-sm" @click="editingDueDate=false">Cancel</button>
+                    </span>
+                  </div>
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Created</span>
+                <span class="detail-value">{{ formatDateTime(selectedTask.createdAt) }}</span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="modal-section">
+              <div class="modal-section-title">Actions</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" @click="cycleStatus(selectedTask)">▶ Next Status</button>
+                <button class="btn btn-ghost btn-sm" @click="showReassignModal = true">🔄 Reassign</button>
+                <button class="btn btn-danger btn-sm" @click="deleteAssignment(selectedTask.id); selectedTask=null">🗑 Delete</button>
+              </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="modal-section">
+              <div class="modal-section-title">Tags</div>
+              <div class="tags-grid" style="margin-top:0;margin-bottom:12px;">
+                <span v-for="tag in getTaskTags(selectedTask.id)" :key="tag.id" class="tag" :style="{background: tag.color+'22', color: tag.color, border: '1px solid '+tag.color+'44', fontSize:'13px', padding:'4px 12px'}">
+                  <span class="tag-dot" :style="{background: tag.color}"></span>{{ tag.name }}
+                  <button style="background:none;border:none;color:inherit;margin-left:4px;cursor:pointer;" @click="removeTagFromTask(selectedTask.id, tag.id)">✕</button>
+                </span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select v-model="selectedTagId" class="form-control" style="flex:1;">
+                  <option value="">Add a tag...</option>
+                  <option v-for="tag in availableTagsForTask" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
+                </select>
+                <button class="btn btn-primary btn-sm" @click="addTagToTask" :disabled="!selectedTagId">Add</button>
+              </div>
+            </div>
+
+            <!-- Subtasks -->
+            <div class="modal-section">
+              <div class="modal-section-title">Subtasks</div>
+              <div v-if="taskSubtasks.length > 0">
+                <div class="subtask-progress">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span class="text-xs text-muted">Progress</span>
+                    <span class="text-xs text-muted">{{ subtaskProgress }}%</span>
+                  </div>
+                  <div class="progress-bar"><div class="progress-fill" :style="{width: subtaskProgress + '%'}"></div></div>
+                </div>
+                <div style="margin-top:12px;">
+                  <div v-for="st in taskSubtasks" :key="st.id" class="subtask-item">
+                    <button class="subtask-check" :class="{done: st.completed}" @click="toggleSubtask(st)">
+                      <span v-if="st.completed" style="color:#fff;font-size:12px;">✓</span>
+                    </button>
+                    <span :class="['subtask-title', {done: st.completed}]">{{ st.title }}</span>
+                    <button class="btn btn-sm btn-danger" style="padding:2px 6px;" @click="deleteSubtask(st.id)">✕</button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-sm text-muted" style="margin-bottom:12px;">No subtasks yet.</div>
+              <div style="display:flex;gap:8px;">
+                <input v-model="newSubtaskTitle" class="form-control" placeholder="New subtask..." @keyup.enter="addSubtask" />
+                <button class="btn btn-primary btn-sm" @click="addSubtask" :disabled="!newSubtaskTitle.trim()">Add</button>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="modal-section">
+              <div class="modal-section-title">Notes</div>
+              <div v-if="taskNotes.length === 0" class="text-sm text-muted" style="margin-bottom:12px;">No notes yet.</div>
+              <div v-else>
+                <div v-for="note in taskNotes" :key="note.id" class="note-card">
+                  <div class="note-text">{{ note.note }}</div>
+                  <div class="note-meta">by <strong>{{ getMemberName(note.authorId) }}</strong> · {{ formatDateTime(note.createdAt) }}</div>
+                </div>
+              </div>
+              <div style="margin-top:12px;">
+                <textarea v-model="newNoteText" class="form-control" rows="3" placeholder="Add a note..."></textarea>
+                <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                  <button class="btn btn-primary btn-sm" @click="addNote" :disabled="!newNoteText.trim()">+ Add Note</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===== REASSIGN MODAL ===== -->
+    <transition name="fade">
+      <div v-if="showReassignModal && selectedTask" class="modal-overlay" @click.self="showReassignModal=false">
+        <div class="modal" style="max-width:400px;">
+          <div class="modal-header">
+            <div class="modal-title">Reassign Task</div>
+            <button class="modal-close" @click="showReassignModal=false">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Assign to:</label>
+              <select v-model="reassignTo" class="form-control">
+                <option value="">Unassigned</option>
+                <option v-for="m in teamMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="showReassignModal=false">Cancel</button>
+            <button class="btn btn-primary" @click="reassignTask">Reassign</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ===== OVERDUE BADGE ===== -->
+    <transition name="fade">
+      <div v-if="myOverdueCount > 0" class="overdue-badge" @click="activeTab='tasks'">
+        ⚠️ {{ myOverdueCount }} Overdue
+      </div>
+    </transition>
+
+  </template>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+const { createClient } = supabase;
+
+const SUPABASE_URL = 'https://emmjvepuzlllxchgtkao.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtbWp2ZXB1emxsbHhjaGd0a2FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzU4NDIsImV4cCI6MjA4ODkxMTg0Mn0.iEOCAxrXC74j79E1zYTPSVSclleUCEaijn-feMeU0TU';
+
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Avatar colors palette
+const AVATAR_COLORS = ['#6366f1','#8b5cf6','#ec4899','#ef4444','#f59e0b','#10b981','#14b8a6','#3b82f6','#06b6d4','#84cc16'];
+
+createApp({
+  setup() {
+    // ── State ──────────────────────────────────────────────────────
+    const loading = ref(true);
+    const saving = ref(false);
+    const activeTab = ref('dashboard');
+    const taskView = ref('kanban');
+    const currentUserId = ref('');
+    const showBanner = ref(true);
+    const showReassignModal = ref(false);
+    const reassignTo = ref('');
+    const selectedTask = ref(null);
+    const editingDueDate = ref(false);
+    const editDueDateValue = ref('');
+    const selectedTagId = ref('');
+    const newSubtaskTitle = ref('');
+    const newNoteText = ref('');
+
+    // Data
+    const teamMembers = ref([]);
+    const assignments = ref([]);
+    const notifications = ref([]);
+    const notes = ref([]);
+    const tags = ref([]);
+    const taskTags = ref([]);
+    const subtasks = ref([]);
+    const activityLog = ref([]);
+
+    // Forms
+    const newTask = ref({ title: '', description: '', assignedTo: '', priority: 'medium', dueDate: '' });
+    const newMember = ref({ name: '', role: '', email: '' });
+    const newTag = ref({ name: '', color: '#6366f1' });
+
+    // Subscriptions
+    let subs = [];
+
+    const tabs = [
+      { id: 'dashboard', label: '🏠 Dashboard' },
+      { id: 'tasks', label: '📋 Tasks' },
+      { id: 'team', label: '👥 Team' },
+      { id: 'tags', label: '🏷️ Tags' },
+      { id: 'activity', label: '📊 Activity' },
+      { id: 'notifications', label: '🔔 Notifications' },
+    ];
+
+    // ── Computed ───────────────────────────────────────────────────
+    const currentUserName = computed(() => {
+      const m = teamMembers.value.find(m => m.id === currentUserId.value);
+      return m ? m.name : 'Unknown';
+    });
+
+    const myTasks = computed(() => {
+      if (!currentUserId.value) return assignments.value;
+      return assignments.value.filter(t => t.assignedTo === currentUserId.value);
+    });
+
+    const myTasksCount = computed(() => myTasks.value.length);
+
+    const myInProgressCount = computed(() =>
+      myTasks.value.filter(t => normalizeStatus(t.status) === 'inprogress').length
+    );
+
+    const myOverdueCount = computed(() =>
+      myTasks.value.filter(t => t.dueDate && isDueOverdue(t.dueDate) && normalizeStatus(t.status) !== 'completed').length
+    );
+
+    const myDueSoonCount = computed(() =>
+      myTasks.value.filter(t => t.dueDate && isDueSoon(t.dueDate) && !isDueOverdue(t.dueDate) && normalizeStatus(t.status) !== 'completed').length
+    );
+
+    const myPriorityTasks = computed(() => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return [...myTasks.value]
+        .filter(t => normalizeStatus(t.status) !== 'completed')
+        .sort((a, b) => (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3))
+        .slice(0, 5);
+    });
+
+    const getTodoTasks = computed(() =>
+      assignments.value.filter(t => normalizeStatus(t.status) === 'todo')
+    );
+
+    const getInProgressTasks = computed(() =>
+      assignments.value.filter(t => normalizeStatus(t.status) === 'inprogress')
+    );
+
+    const getCompletedTasks = computed(() =>
+      assignments.value.filter(t => normalizeStatus(t.status) === 'completed')
+    );
+
+    const unreadCount = computed(() =>
+      notifications.value.filter(n => !n.read).length
+    );
+
+    const taskSubtasks = computed(() => {
+      if (!selectedTask.value) return [];
+      return subtasks.value.filter(s => s.taskId === selectedTask.value.id);
+    });
+
+    const taskNotes = computed(() => {
+      if (!selectedTask.value) return [];
+      return notes.value.filter(n => n.taskId === selectedTask.value.id);
+    });
+
+    const subtaskProgress = computed(() => {
+      const st = taskSubtasks.value;
+      if (!st.length) return 0;
+      return Math.round((st.filter(s => s.completed).length / st.length) * 100);
+    });
+
+    const availableTagsForTask = computed(() => {
+      if (!selectedTask.value) return tags.value;
+      const assigned = taskTags.value.filter(tt => tt.taskId === selectedTask.value.id).map(tt => tt.tagId);
+      return tags.value.filter(t => !assigned.includes(t.id));
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function normalizeStatus(status) {
+      if (!status) return 'todo';
+      const s = status.toLowerCase().replace(/[\s-_]/g, '');
+      if (s === 'inprogress' || s === 'in-progress' || s === 'in_progress') return 'inprogress';
+      if (s === 'completed' || s === 'done') return 'completed';
+      return 'todo';
+    }
+
+    function todayDateStr() {
+      const n = new Date();
+      return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+    }
+
+    function isDueOverdue(dateStr) {
+      if (!dateStr) return false;
+      return dateStr < todayDateStr();
+    }
+
+    function isDueSoon(dateStr) {
+      if (!dateStr) return false;
+      const today = todayDateStr();
+      const n = new Date();
+      const week = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 7);
+      const weekStr = `${week.getFullYear()}-${String(week.getMonth()+1).padStart(2,'0')}-${String(week.getDate()).padStart(2,'0')}`;
+      return dateStr >= today && dateStr <= weekStr;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      // Parse date parts directly to avoid timezone shifts
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDateTime(dateStr) {
+      if (!dateStr) return '—';
+      return new Date(dateStr).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function initials(name) {
+      if (!name) return '?';
+      return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    function getAvatarColor(userId) {
+      if (!userId) return '#475569';
+      let hash = 0;
+      for (let c of String(userId)) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+      return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    }
+
+    function getAssignee(userId) {
+      return teamMembers.value.find(m => m.id === userId) || null;
+    }
+
+    function getMemberName(userId) {
+      const m = teamMembers.value.find(m => m.id === userId);
+      return m ? m.name : 'Unknown';
+    }
+
+    function getTaskTags(taskId) {
+      const tids = taskTags.value.filter(tt => tt.taskId === taskId).map(tt => tt.tagId);
+      return tags.value.filter(t => tids.includes(t.id));
+    }
+
+    function memberTaskCount(memberId) {
+      return assignments.value.filter(t => t.assignedTo === memberId).length;
+    }
+
+    function getActivityIcon(action) {
+      if (!action) return '📋';
+      const a = action.toLowerCase();
+      if (a.includes('creat') || a.includes('add')) return '➕';
+      if (a.includes('delet') || a.includes('remov')) return '🗑️';
+      if (a.includes('updat') || a.includes('edit') || a.includes('chang')) return '✏️';
+      if (a.includes('complet')) return '✅';
+      if (a.includes('assign')) return '👤';
+      if (a.includes('note')) return '📝';
+      if (a.includes('tag')) return '🏷️';
+      if (a.includes('subtask')) return '☑️';
+      return '📋';
+    }
+
+    // ── Data Loading ──────────────────────────────────────────────
+    async function loadData() {
+      try {
+        const [
+          { data: members },
+          { data: tasks },
+          { data: notifs },
+          { data: n },
+          { data: t },
+          { data: tt },
+          { data: st },
+          { data: al },
+        ] = await Promise.all([
+          db.from('team_members').select('*').order('name'),
+          db.from('assignments').select('*').order('createdAt', { ascending: false }),
+          db.from('notifications').select('*').order('createdAt', { ascending: false }),
+          db.from('notes').select('*').order('createdAt', { ascending: false }),
+          db.from('tags').select('*').order('name'),
+          db.from('task_tags').select('*'),
+          db.from('subtasks').select('*'),
+          db.from('activity_log').select('*').order('createdAt', { ascending: false }).limit(100),
+        ]);
+
+        teamMembers.value = members || [];
+        assignments.value = tasks || [];
+        notifications.value = notifs || [];
+        notes.value = n || [];
+        tags.value = t || [];
+        taskTags.value = tt || [];
+        subtasks.value = st || [];
+        activityLog.value = al || [];
+
+        if (teamMembers.value.length > 0 && !currentUserId.value) {
+          currentUserId.value = teamMembers.value[0].id;
+        }
+      } catch (e) {
+        console.error('loadData error:', e);
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    // ── Real-time Subscriptions ───────────────────────────────────
+    function subscribeToChanges() {
+      const tables = ['team_members', 'assignments', 'notifications', 'notes', 'tags', 'task_tags', 'subtasks', 'activity_log'];
+      tables.forEach(table => {
+        const sub = db.channel(`realtime-${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table }, () => loadData())
+          .subscribe();
+        subs.push(sub);
+      });
+    }
+
+    function unsubscribeAll() {
+      subs.forEach(s => db.removeChannel(s));
+      subs.length = 0;
+    }
+
+    // ── Activity Log ──────────────────────────────────────────────
+    async function logActivity(taskId, action, details = '') {
+      const userId = currentUserId.value || (teamMembers.value[0]?.id) || null;
+      await db.from('activity_log').insert({
+        taskId,
+        userId,
+        action,
+        details,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // ── Task Methods ──────────────────────────────────────────────
+    async function addAssignment() {
+      if (!newTask.value.title.trim()) return;
+      saving.value = true;
+      try {
+        const payload = {
+          title: newTask.value.title.trim(),
+          description: newTask.value.description.trim(),
+          assignedTo: newTask.value.assignedTo || null,
+          priority: newTask.value.priority,
+          status: 'todo',
+          dueDate: newTask.value.dueDate || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        const { data } = await db.from('assignments').insert(payload).select().single();
+        if (data) {
+          assignments.value.unshift(data);
+          await logActivity(data.id, 'created task', data.title);
+          // Notify assignee
+          if (data.assignedTo) {
+            await db.from('notifications').insert({
+              userId: data.assignedTo,
+              message: `You have been assigned a new task: "${data.title}"`,
+              read: false,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        }
+        newTask.value = { title: '', description: '', assignedTo: '', priority: 'medium', dueDate: '' };
+      } catch (e) {
+        console.error('addAssignment error:', e);
+      } finally {
+        saving.value = false;
+      }
+    }
+
+    async function deleteAssignment(taskId) {
+      if (!confirm('Delete this task?')) return;
+      try {
+        await db.from('task_tags').delete().eq('taskId', taskId);
+        await db.from('subtasks').delete().eq('taskId', taskId);
+        await db.from('notes').delete().eq('taskId', taskId);
+        await db.from('activity_log').delete().eq('taskId', taskId);
+        await db.from('assignments').delete().eq('id', taskId);
+        assignments.value = assignments.value.filter(t => t.id !== taskId);
+        taskTags.value = taskTags.value.filter(tt => tt.taskId !== taskId);
+        subtasks.value = subtasks.value.filter(s => s.taskId !== taskId);
+        notes.value = notes.value.filter(n => n.taskId !== taskId);
+      } catch (e) {
+        console.error('deleteAssignment error:', e);
+      }
+    }
+
+    async function cycleStatus(task) {
+      const cycle = { todo: 'in-progress', inprogress: 'completed', completed: 'todo' };
+      const current = normalizeStatus(task.status || 'todo');
+      const next = cycle[current] || 'todo';
+      try {
+        await db.from('assignments').update({ status: next, updatedAt: new Date().toISOString() }).eq('id', task.id);
+        const idx = assignments.value.findIndex(t => t.id === task.id);
+        if (idx !== -1) assignments.value[idx] = { ...assignments.value[idx], status: next };
+        if (selectedTask.value?.id === task.id) selectedTask.value = { ...selectedTask.value, status: next };
+        await logActivity(task.id, `changed status to ${next}`, task.title);
+      } catch (e) {
+        console.error('cycleStatus error:', e);
+      }
+    }
+
+    function openTaskModal(task) {
+      selectedTask.value = task;
+      editingDueDate.value = false;
+      editDueDateValue.value = task.dueDate || '';
+      selectedTagId.value = '';
+      newSubtaskTitle.value = '';
+      newNoteText.value = '';
+      reassignTo.value = task.assignedTo || '';
+    }
+
+    function startEditDueDate() {
+      editDueDateValue.value = selectedTask.value.dueDate || '';
+      editingDueDate.value = true;
+    }
+
+    async function saveDueDate() {
+      if (!selectedTask.value) return;
+      try {
+        await db.from('assignments').update({ dueDate: editDueDateValue.value || null, updatedAt: new Date().toISOString() }).eq('id', selectedTask.value.id);
+        const idx = assignments.value.findIndex(t => t.id === selectedTask.value.id);
+        if (idx !== -1) assignments.value[idx] = { ...assignments.value[idx], dueDate: editDueDateValue.value || null };
+        selectedTask.value = { ...selectedTask.value, dueDate: editDueDateValue.value || null };
+        editingDueDate.value = false;
+        await logActivity(selectedTask.value.id, 'updated due date', editDueDateValue.value);
+      } catch (e) {
+        console.error('saveDueDate error:', e);
+      }
+    }
+
+    async function reassignTask() {
+      if (!selectedTask.value) return;
+      try {
+        const newAssignee = reassignTo.value || null;
+        await db.from('assignments').update({ assignedTo: newAssignee, updatedAt: new Date().toISOString() }).eq('id', selectedTask.value.id);
+        const idx = assignments.value.findIndex(t => t.id === selectedTask.value.id);
+        if (idx !== -1) assignments.value[idx] = { ...assignments.value[idx], assignedTo: newAssignee };
+        selectedTask.value = { ...selectedTask.value, assignedTo: newAssignee };
+        showReassignModal.value = false;
+        await logActivity(selectedTask.value.id, 'reassigned task', getMemberName(newAssignee));
+        if (newAssignee) {
+          await db.from('notifications').insert({
+            userId: newAssignee,
+            message: `You have been assigned to task: "${selectedTask.value.title}"`,
+            read: false,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      } catch (e) {
+        console.error('reassignTask error:', e);
+      }
+    }
+
+    // ── Notes ──────────────────────────────────────────────────────
+    async function addNote() {
+      if (!selectedTask.value || !newNoteText.value.trim()) return;
+      try {
+        const payload = {
+          taskId: selectedTask.value.id,
+          authorId: currentUserId.value || null,
+          note: newNoteText.value.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        const { data } = await db.from('notes').insert(payload).select().single();
+        if (data) notes.value.unshift(data);
+        newNoteText.value = '';
+        await logActivity(selectedTask.value.id, 'added note', selectedTask.value.title);
+      } catch (e) {
+        console.error('addNote error:', e);
+      }
+    }
+
+    // ── Tags ──────────────────────────────────────────────────────
+    async function addTag() {
+      if (!newTag.value.name.trim()) return;
+      try {
+        const { data } = await db.from('tags').insert({ name: newTag.value.name.trim(), color: newTag.value.color }).select().single();
+        if (data) tags.value.push(data);
+        newTag.value = { name: '', color: '#6366f1' };
+      } catch (e) {
+        console.error('addTag error:', e);
+      }
+    }
+
+    async function deleteTag(tagId) {
+      if (!confirm('Delete this tag?')) return;
+      try {
+        await db.from('task_tags').delete().eq('tagId', tagId);
+        await db.from('tags').delete().eq('id', tagId);
+        tags.value = tags.value.filter(t => t.id !== tagId);
+        taskTags.value = taskTags.value.filter(tt => tt.tagId !== tagId);
+      } catch (e) {
+        console.error('deleteTag error:', e);
+      }
+    }
+
+    async function addTagToTask() {
+      if (!selectedTask.value || !selectedTagId.value) return;
+      try {
+        const payload = { taskId: selectedTask.value.id, tagId: selectedTagId.value };
+        const { data } = await db.from('task_tags').insert(payload).select().single();
+        if (data) taskTags.value.push(data);
+        selectedTagId.value = '';
+        const tag = tags.value.find(t => t.id === data?.tagId);
+        await logActivity(selectedTask.value.id, 'added tag', tag?.name);
+      } catch (e) {
+        console.error('addTagToTask error:', e);
+      }
+    }
+
+    async function removeTagFromTask(taskId, tagId) {
+      try {
+        await db.from('task_tags').delete().eq('taskId', taskId).eq('tagId', tagId);
+        taskTags.value = taskTags.value.filter(tt => !(tt.taskId === taskId && tt.tagId === tagId));
+      } catch (e) {
+        console.error('removeTagFromTask error:', e);
+      }
+    }
+
+    // ── Subtasks ──────────────────────────────────────────────────
+    async function addSubtask() {
+      if (!selectedTask.value || !newSubtaskTitle.value.trim()) return;
+      try {
+        const payload = { taskId: selectedTask.value.id, title: newSubtaskTitle.value.trim(), completed: false };
+        const { data } = await db.from('subtasks').insert(payload).select().single();
+        if (data) subtasks.value.push(data);
+        newSubtaskTitle.value = '';
+        await logActivity(selectedTask.value.id, 'added subtask', payload.title);
+      } catch (e) {
+        console.error('addSubtask error:', e);
+      }
+    }
+
+    async function toggleSubtask(st) {
+      try {
+        await db.from('subtasks').update({ completed: !st.completed }).eq('id', st.id);
+        const idx = subtasks.value.findIndex(s => s.id === st.id);
+        if (idx !== -1) subtasks.value[idx] = { ...subtasks.value[idx], completed: !st.completed };
+      } catch (e) {
+        console.error('toggleSubtask error:', e);
+      }
+    }
+
+    async function deleteSubtask(stId) {
+      try {
+        await db.from('subtasks').delete().eq('id', stId);
+        subtasks.value = subtasks.value.filter(s => s.id !== stId);
+      } catch (e) {
+        console.error('deleteSubtask error:', e);
+      }
+    }
+
+    // ── Team ──────────────────────────────────────────────────────
+    async function addMember() {
+      if (!newMember.value.name.trim()) return;
+      try {
+        const { data } = await db.from('team_members').insert({
+          name: newMember.value.name.trim(),
+          role: newMember.value.role.trim(),
+          email: newMember.value.email.trim(),
+        }).select().single();
+        if (data) teamMembers.value.push(data);
+        newMember.value = { name: '', role: '', email: '' };
+      } catch (e) {
+        console.error('addMember error:', e);
+      }
+    }
+
+    async function deleteMember(memberId) {
+      if (!confirm('Remove this team member?')) return;
+      try {
+        await db.from('team_members').delete().eq('id', memberId);
+        teamMembers.value = teamMembers.value.filter(m => m.id !== memberId);
+        if (currentUserId.value === memberId) currentUserId.value = teamMembers.value[0]?.id || '';
+      } catch (e) {
+        console.error('deleteMember error:', e);
+      }
+    }
+
+    // ── Notifications ─────────────────────────────────────────────
+    async function markRead(n) {
+      if (n.read) return;
+      try {
+        await db.from('notifications').update({ read: true }).eq('id', n.id);
+        const idx = notifications.value.findIndex(x => x.id === n.id);
+        if (idx !== -1) notifications.value[idx] = { ...notifications.value[idx], read: true };
+      } catch (e) {
+        console.error('markRead error:', e);
+      }
+    }
+
+    async function markAllRead() {
+      try {
+        const ids = notifications.value.filter(n => !n.read).map(n => n.id);
+        if (!ids.length) return;
+        await db.from('notifications').update({ read: true }).in('id', ids);
+        notifications.value = notifications.value.map(n => ({ ...n, read: true }));
+      } catch (e) {
+        console.error('markAllRead error:', e);
+      }
+    }
+
+    // ── Lifecycle ─────────────────────────────────────────────────
+    onMounted(async () => {
+      await loadData();
+      subscribeToChanges();
+    });
+
+    onUnmounted(() => {
+      unsubscribeAll();
+    });
+
+    // ── Return ────────────────────────────────────────────────────
+    return {
+      // state
+      loading, saving, activeTab, taskView, currentUserId, showBanner,
+      showReassignModal, reassignTo, selectedTask, editingDueDate, editDueDateValue,
+      selectedTagId, newSubtaskTitle, newNoteText,
+      // data
+      teamMembers, assignments, notifications, notes, tags, taskTags, subtasks, activityLog,
+      // forms
+      newTask, newMember, newTag,
+      // static
+      tabs,
+      // computed
+      currentUserName, myTasks, myTasksCount, myInProgressCount, myOverdueCount,
+      myDueSoonCount, myPriorityTasks, getTodoTasks, getInProgressTasks,
+      getCompletedTasks, unreadCount, taskSubtasks, taskNotes, subtaskProgress,
+      availableTagsForTask,
+      // helpers
+      normalizeStatus, isDueOverdue, isDueSoon, formatDate, formatDateTime,
+      initials, getAvatarColor, getAssignee, getMemberName, getTaskTags,
+      memberTaskCount, getActivityIcon,
+      // methods
+      loadData, addAssignment, deleteAssignment, cycleStatus, openTaskModal,
+      startEditDueDate, saveDueDate, reassignTask,
+      addNote, addTag, deleteTag, addTagToTask, removeTagFromTask,
+      addSubtask, toggleSubtask, deleteSubtask,
+      addMember, deleteMember, markRead, markAllRead,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
