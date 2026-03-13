@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team Dashboard</title>
+  <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.2/dist/umd/supabase.min.js"></script>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f5f7fa;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .app-header .brand {
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f1f5f9;
+      border-radius: 20px;
+      padding: 5px 12px 5px 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #475569;
+    }
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    /* ── Main layout ── */
+    .app-body {
+      display: flex;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px;
+      background: #ffffff;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-section {
+      padding: 16px;
+    }
+    .sidebar-section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #475569;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-item:hover { background: #f1f5f9; color: #1e293b; }
+    .nav-item.active { background: #ede9fe; color: #6366f1; }
+    .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+    /* ── Main content ── */
+    .main-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toolbar-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e293b;
+      flex: 1;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-secondary.active { background: #ede9fe; color: #6366f1; border-color: #c4b5fd; }
+    .btn-danger { background: #fee2e2; color: #dc2626; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
+
+    /* ── Search ── */
+    .search-input {
+      padding: 7px 12px 7px 34px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      width: 220px;
+      background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
+      color: #1e293b;
+    }
+    .search-input:focus { outline: none; border-color: #a5b4fc; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+
+    /* ── View area ── */
+    .view-area {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+    }
+
+    /* ── Kanban ── */
+    .kanban-board {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      min-height: 100%;
+    }
+    .kanban-column {
+      background: #f1f5f9;
+      border-radius: 12px;
+      width: 300px;
+      flex-shrink: 0;
+      padding: 12px;
+      min-height: 200px;
+    }
+    .kanban-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .column-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #475569;
+    }
+    .column-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .column-count {
+      background: #fff;
+      color: #64748b;
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* ── Task card ── */
+    .task-card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.15s;
+      border: 1px solid #e2e8f0;
+    }
+    .task-card:hover { box-shadow: 0 4px 12px rgba(99,102,241,0.12); transform: translateY(-2px); }
+    .task-card.dragging { opacity: 0.5; }
+    .task-card-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #1e293b;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .task-card-desc {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 8px;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .task-card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .task-assignee {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .avatar-xs {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .due-date {
+      font-size: 0.72rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .due-date.overdue { color: #dc2626; }
+    .due-date.soon { color: #d97706; }
+
+    /* ── Tags ── */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: #ede9fe;
+      color: #6366f1;
+      gap: 3px;
+    }
+    .tag.green { background: #dcfce7; color: #16a34a; }
+    .tag.blue { background: #dbeafe; color: #2563eb; }
+    .tag.red { background: #fee2e2; color: #dc2626; }
+    .tag.yellow { background: #fef9c3; color: #ca8a04; }
+    .tag.gray { background: #f1f5f9; color: #475569; }
+    .tag-remove { cursor: pointer; opacity: 0.6; }
+    .tag-remove:hover { opacity: 1; }
+
+    /* ── Priority badge ── */
+    .priority-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .priority-low { background: #f0fdf4; color: #16a34a; }
+    .priority-medium { background: #fefce8; color: #ca8a04; }
+    .priority-high { background: #fff7ed; color: #ea580c; }
+    .priority-critical { background: #fef2f2; color: #dc2626; }
+
+    /* ── Grid view ── */
+    .grid-view {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+    }
+    .modal-sm {
+      max-width: 420px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+    }
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .modal-close {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: #64748b;
+      flex-shrink: 0;
+    }
+    .modal-close:hover { background: #e2e8f0; color: #1e293b; }
+
+    /* ── Form controls ── */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .form-control {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      color: #1e293b;
+      background: #f8fafc;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #a5b4fc;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+      background: #fff;
+    }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    select.form-control { cursor: pointer; }
+
+    /* ── Subtasks ── */
+    .subtask-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 6px;
+    }
+    .subtask-item.done .subtask-title {
+      text-decoration: line-through;
+      color: #94a3b8;
+    }
+    .subtask-title { flex: 1; font-size: 0.875rem; color: #1e293b; }
+    .subtask-checkbox {
+      width: 16px; height: 16px;
+      accent-color: #6366f1;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .subtask-delete {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 0.9rem;
+      padding: 0;
+    }
+    .subtask-delete:hover { color: #dc2626; }
+
+    /* ── Notes ── */
+    .note-item {
+      background: #fafafa;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .note-meta {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .note-text { font-size: 0.875rem; color: #374151; line-height: 1.5; }
+
+    /* ── Activity log panel ── */
+    .activity-panel {
+      width: 300px;
+      background: #ffffff;
+      border-left: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .activity-panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .activity-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .activity-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background 0.1s;
+    }
+    .activity-item:hover { background: #f8fafc; }
+    .activity-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .activity-body { flex: 1; }
+    .activity-text {
+      font-size: 0.8rem;
+      color: #475569;
+      line-height: 1.4;
+    }
+    .activity-text strong { color: #1e293b; }
+    .activity-time {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* ── Login screen ── */
+    .login-screen {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 36px;
+      box-shadow: 0 8px 40px rgba(99,102,241,0.12);
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .login-logo-icon {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .login-logo-text {
+      font-size: 1.4rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .login-subtitle {
+      text-align: center;
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+
+    /* ── Drag drop ── */
+    .drop-zone { transition: background 0.15s; }
+    .drop-zone.drag-over { background: #ede9fe; }
+
+    /* ── Progress bar ── */
+    .progress-bar-wrap {
+      background: #e2e8f0;
+      border-radius: 4px;
+      height: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #94a3b8;
+    }
+    .empty-state-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state-text { font-size: 0.9rem; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      background: #1e293b;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slideIn 0.2s ease;
+    }
+    .toast.success { background: #16a34a; }
+    .toast.error { background: #dc2626; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+
+    /* ── Inline edit ── */
+    .inline-editable {
+      cursor: pointer;
+      border-bottom: 1px dashed transparent;
+    }
+    .inline-editable:hover { border-bottom-color: #a5b4fc; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .activity-panel { display: none; }
+      .kanban-board { flex-direction: column; }
+      .kanban-column { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── LOGIN ── -->
+  <div v-if="!currentUser" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="login-logo-icon">📋</span>
+        <div class="login-logo-text">Team Dashboard</div>
+      </div>
+      <p class="login-subtitle">Sign in to access your team's board</p>
+      <div class="form-group">
+        <label class="form-label">Your Name</label>
+        <input
+          class="form-control"
+          v-model="loginName"
+          placeholder="e.g. Alice"
+          @keyup.enter="login"
+        />
+      </div>
+      <button class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;" @click="login" :disabled="!loginName.trim()">
+        <span v-if="loading" class="spinner"></span>
+        <span v-else>Get Started →</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── MAIN APP ── -->
+  <template v-else>
+    <!-- Header -->
+    <header class="app-header">
+      <span class="brand">📋 Team Dashboard</span>
+      <div class="header-right">
+        <div class="user-badge">
+          <div class="user-avatar">{{ initials(currentUser.name) }}</div>
+          {{ currentUser.name }}
+        </div>
+        <button class="btn btn-secondary btn-sm" @click="logout">Sign out</button>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <div class="app-body">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Views</div>
+          <div class="nav-item" :class="{ active: activeView === 'kanban' }" @click="activeView='kanban'">
+            <span class="nav-icon">🗂️</span> Kanban Board
+          </div>
+          <div class="nav-item" :class="{ active: activeView === 'grid' }" @click="activeView='grid'">
+            <span class="nav-icon">⊞</span> Grid View
+          </div>
+          <div class="nav-item" :class="{ active: activeView === 'activity' }" @click="activeView='activity'">
+            <span class="nav-icon">📊</span> Activity Log
+          </div>
+        </div>
+        <div class="sidebar-section" style="border-top: 1px solid #e2e8f0;">
+          <div class="sidebar-section-title">Filter by Status</div>
+          <div
+            v-for="col in columns"
+            :key="col.id"
+            class="nav-item"
+            :class="{ active: filterStatus === col.id }"
+            @click="filterStatus = filterStatus === col.id ? null : col.id"
+          >
+            <span class="nav-icon">
+              <span :style="{ display:'inline-block', width:'10px', height:'10px', borderRadius:'50%', background: col.color }"></span>
+            </span>
+            {{ col.label }}
+            <span class="column-count" style="margin-left:auto;">{{ tasksByStatus(col.id).length }}</span>
+          </div>
+        </div>
+        <div class="sidebar-section" style="border-top: 1px solid #e2e8f0;">
+          <div class="sidebar-section-title">Filter by Priority</div>
+          <div
+            v-for="p in priorities"
+            :key="p.value"
+            class="nav-item"
+            :class="{ active: filterPriority === p.value }"
+            @click="filterPriority = filterPriority === p.value ? null : p.value"
+          >
+            <span class="nav-icon">{{ p.icon }}</span>
+            {{ p.label }}
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <main class="main-content">
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <span class="toolbar-title">
+            {{ activeView === 'kanban' ? 'Kanban Board' : activeView === 'grid' ? 'Grid View' : 'Activity Log' }}
+          </span>
+          <input class="search-input" v-model="searchQuery" placeholder="Search tasks…" />
+          <button class="btn btn-secondary" :class="{ active: filterStatus || filterPriority }" @click="clearFilters" v-if="filterStatus || filterPriority">
+            ✕ Clear Filters
+          </button>
+          <button class="btn btn-primary" @click="openCreateModal">
+            + New Task
+          </button>
+        </div>
+
+        <!-- Kanban / Grid view -->
+        <div v-if="activeView !== 'activity'" class="view-area">
+
+          <!-- Kanban -->
+          <div v-if="activeView === 'kanban'" class="kanban-board">
+            <div
+              v-for="col in columns"
+              :key="col.id"
+              class="kanban-column drop-zone"
+              :class="{ 'drag-over': dragOverColumn === col.id }"
+              @dragover.prevent="dragOverColumn = col.id"
+              @dragleave="dragOverColumn = null"
+              @drop="onDrop(col.id)"
+            >
+              <div class="kanban-column-header">
+                <div class="column-label">
+                  <span class="column-dot" :style="{ background: col.color }"></span>
+                  {{ col.label }}
+                </div>
+                <span class="column-count">{{ filteredTasksByStatus(col.id).length }}</span>
+              </div>
+
+              <div
+                v-for="task in filteredTasksByStatus(col.id)"
+                :key="task.id"
+                class="task-card"
+                :class="{ dragging: draggingTaskId === task.id }"
+                draggable="true"
+                @dragstart="onDragStart(task)"
+                @dragend="onDragEnd"
+                @click="openTaskDetail(task)"
+              >
+                <div class="task-card-title">{{ task.title }}</div>
+                <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+                <div v-if="task.tags && task.tags.length" style="margin-bottom:8px; display:flex; flex-wrap:wrap; gap:4px;">
+                  <span v-for="tag in task.tags" :key="tag" class="tag" :class="tagColor(tag)">{{ tag }}</span>
+                </div>
+                <div class="task-card-meta">
+                  <span :class="'priority-badge priority-' + task.priority">{{ priorityLabel(task.priority) }}</span>
+                  <span v-if="task.assignee" class="task-assignee">
+                    <span class="avatar-xs">{{ initials(task.assignee) }}</span>
+                    {{ task.assignee }}
+                  </span>
+                  <span v-if="task.due_date" class="due-date" :class="dueDateClass(task.due_date)">
+                    📅 {{ formatDate(task.due_date) }}
+                  </span>
+                </div>
+                <template v-if="task.subtasks && task.subtasks.length">
+                  <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" :style="{ width: subtaskProgress(task) + '%' }"></div>
+                  </div>
+                  <div style="font-size:0.72rem; color:#94a3b8; margin-top:3px;">
+                    {{ doneSubtasks(task) }}/{{ task.subtasks.length }} subtasks
+                  </div>
+                </template>
+              </div>
+
+              <div v-if="!filteredTasksByStatus(col.id).length" class="empty-state" style="padding:20px 10px;">
+                <div style="font-size:1.5rem; margin-bottom:6px;">✨</div>
+                <div style="font-size:0.8rem; color:#cbd5e1;">No tasks here</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grid -->
+          <div v-else class="grid-view">
+            <div
+              v-for="task in filteredTasks"
+              :key="task.id"
+              class="task-card"
+              @click="openTaskDetail(task)"
+            >
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; gap:8px;">
+                <span class="tag" :style="{ background: statusColor(task.status)+'22', color: statusColor(task.status) }">
+                  {{ statusLabel(task.status) }}
+                </span>
+                <span :class="'priority-badge priority-' + task.priority">{{ priorityLabel(task.priority) }}</span>
+              </div>
+              <div class="task-card-title">{{ task.title }}</div>
+              <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+              <div v-if="task.tags && task.tags.length" style="margin-bottom:8px; display:flex; flex-wrap:wrap; gap:4px;">
+                <span v-for="tag in task.tags" :key="tag" class="tag" :class="tagColor(tag)">{{ tag }}</span>
+              </div>
+              <div class="task-card-meta">
+                <span v-if="task.assignee" class="task-assignee">
+                  <span class="avatar-xs">{{ initials(task.assignee) }}</span>
+                  {{ task.assignee }}
+                </span>
+                <span v-if="task.due_date" class="due-date" :class="dueDateClass(task.due_date)">
+                  📅 {{ formatDate(task.due_date) }}
+                </span>
+              </div>
+            </div>
+            <div v-if="!filteredTasks.length" class="empty-state" style="grid-column:1/-1;">
+              <div class="empty-state-icon">🔍</div>
+              <div class="empty-state-text">No tasks found</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Log full view -->
+        <div v-else class="view-area">
+          <div v-if="loadingActivity" style="text-align:center; padding:40px;">
+            <span class="spinner"></span>
+          </div>
+          <template v-else>
+            <div v-if="!activityLog.length" class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-text">No activity yet</div>
+            </div>
+            <div v-for="item in activityLog" :key="item.id" class="activity-item" style="margin-bottom:4px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px;">
+              <div class="activity-avatar" :style="{ background: avatarGradient(item.user_name) }">
+                {{ initials(item.user_name) }}
+              </div>
+              <div class="activity-body">
+                <div class="activity-text">
+                  <strong>{{ item.user_name }}</strong> {{ item.action }}
+                  <span v-if="item.task_title"> on <em>{{ item.task_title }}</em></span>
+                </div>
+                <div class="activity-time">{{ timeAgo(item.createdAt) }}</div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </main>
+
+      <!-- Activity panel (sidebar) -->
+      <aside class="activity-panel" v-if="activeView !== 'activity'">
+        <div class="activity-panel-header">
+          <span>Team Activity</span>
+          <span class="spinner" v-if="loadingActivity" style="width:14px;height:14px;"></span>
+        </div>
+        <div class="activity-list">
+          <div v-if="!activityLog.length && !loadingActivity" class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-text">No activity yet</div>
+          </div>
+          <div v-for="item in activityLog" :key="item.id" class="activity-item">
+            <div class="activity-avatar" :style="{ background: avatarGradient(item.user_name) }">
+              {{ initials(item.user_name) }}
+            </div>
+            <div class="activity-body">
+              <div class="activity-text">
+                <strong>{{ item.user_name }}</strong> {{ item.action }}
+                <span v-if="item.task_title"> on <em>{{ item.task_title }}</em></span>
+              </div>
+              <div class="activity-time">{{ timeAgo(item.createdAt) }}</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </template>
+
+  <!-- ── CREATE / EDIT TASK MODAL ── -->
+  <div v-if="showTaskModal" class="modal-overlay" @click.self="closeTaskModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">{{ editingTask ? 'Edit Task' : 'New Task' }}</div>
+        <button class="modal-close" @click="closeTaskModal">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input class="form-control" v-model="taskForm.title" placeholder="Task title…" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-control" v-model="taskForm.description" placeholder="Describe the task…" rows="3"></textarea>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" v-model="taskForm.status">
+            <option v-for="col in columns" :key="col.id" :value="col.id">{{ col.label }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select class="form-control" v-model="taskForm.priority">
+            <option v-for="p in priorities" :key="p.value" :value="p.value">{{ p.icon }} {{ p.label }}</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Assignee</label>
+          <input class="form-control" v-model="taskForm.assignee" placeholder="Team member name…" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Date</label>
+          <input class="form-control" type="date" v-model="taskForm.due_date" />
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+          <span v-for="tag in taskForm.tags" :key="tag" class="tag" :class="tagColor(tag)">
+            {{ tag }} <span class="tag-remove" @click="removeTag(tag)">✕</span>
+          </span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input class="form-control" v-model="newTagInput" placeholder="Add tag…" @keyup.enter="addTag" style="flex:1;" />
+          <button class="btn btn-secondary btn-sm" @click="addTag">Add</button>
+        </div>
+      </div>
+
+      <!-- Subtasks -->
+      <div class="form-group">
+        <label class="form-label">Subtasks</label>
+        <div v-for="(sub, idx) in taskForm.subtasks" :key="idx" class="subtask-item" :class="{ done: sub.done }">
+          <input type="checkbox" class="subtask-checkbox" v-model="sub.done" />
+          <span class="subtask-title">{{ sub.title }}</span>
+          <button class="subtask-delete" @click="removeSubtask(idx)" title="Delete subtask">🗑</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <input class="form-control" v-model="newSubtaskInput" placeholder="Add subtask…" @keyup.enter="addSubtask" style="flex:1;" />
+          <button class="btn btn-secondary btn-sm" @click="addSubtask">Add</button>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <div v-for="note in taskForm.notes" :key="note.id" class="note-item">
+          <div class="note-meta">{{ note.author }} · {{ timeAgo(note.createdAt) }}</div>
+          <div class="note-text">{{ note.text }}</div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <textarea class="form-control" v-model="newNoteInput" placeholder="Add a note…" rows="2" style="flex:1;" @keydown.ctrl.enter="addNote"></textarea>
+          <button class="btn btn-secondary btn-sm" style="align-self:flex-end;" @click="addNote">Add</button>
+        </div>
+      </div>
+
+      <hr class="divider" />
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button v-if="editingTask" class="btn btn-danger" @click="deleteTask">🗑 Delete</button>
+        <button class="btn btn-secondary" @click="closeTaskModal">Cancel</button>
+        <button class="btn btn-primary" @click="saveTask" :disabled="!taskForm.title.trim() || saving">
+          <span v-if="saving" class="spinner"></span>
+          <span v-else>{{ editingTask ? '💾 Save Changes' : '✚ Create Task' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DELETE CONFIRM MODAL ── -->
+  <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm=false">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div class="modal-title">Delete Task?</div>
+        <button class="modal-close" @click="showDeleteConfirm=false">✕</button>
+      </div>
+      <p style="color:#475569; font-size:0.9rem; margin-bottom:20px;">
+        Are you sure you want to delete <strong>{{ editingTask && editingTask.title }}</strong>? This cannot be undone.
+      </p>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-secondary" @click="showDeleteConfirm=false">Cancel</button>
+        <button class="btn btn-danger" @click="confirmDelete" :disabled="saving">
+          <span v-if="saving" class="spinner"></span>
+          <span v-else>Delete</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOAST ── -->
+  <div class="toast-container">
+    <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
+      {{ t.message }}
+    </div>
+  </div>
+
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+
+// ── Supabase setup ──
+// NOTE: SUPABASE_KEY is the public anonymous (anon) key, which is safe to
+// embed in client-side code. It enforces Row-Level Security (RLS) policies
+// defined in the Supabase dashboard. Do NOT use the service_role key here.
+const SUPABASE_URL = 'https://emmjvepuzlllxchgtkao.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtbWp2ZXB1emxsbHhjaGd0a2FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzU4NDIsImV4cCI6MjA4ODkxMTg0Mn0.iEOCAxrXC74j79E1zYTPSVSclleUCEaijn-feMeU0TU';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+createApp({
+  setup() {
+    // ── State ──
+    const currentUser = ref(JSON.parse(localStorage.getItem('td_user') || 'null'));
+    const loginName = ref('');
+    const loading = ref(false);
+    const saving = ref(false);
+    const loadingActivity = ref(false);
+
+    const tasks = ref([]);
+    const activityLog = ref([]);
+    const activeView = ref('kanban');
+    const searchQuery = ref('');
+    const filterStatus = ref(null);
+    const filterPriority = ref(null);
+
+    const showTaskModal = ref(false);
+    const showDeleteConfirm = ref(false);
+    const editingTask = ref(null);
+
+    const taskForm = ref(defaultTaskForm());
+    const newTagInput = ref('');
+    const newSubtaskInput = ref('');
+    const newNoteInput = ref('');
+
+    const draggingTaskId = ref(null);
+    const dragOverColumn = ref(null);
+    const toasts = ref([]);
+
+    let activityRefreshInterval = null;
+
+    // ── Constants ──
+    const columns = [
+      { id: 'todo', label: 'To Do', color: '#94a3b8' },
+      { id: 'inprogress', label: 'In Progress', color: '#f59e0b' },
+      { id: 'review', label: 'In Review', color: '#8b5cf6' },
+      { id: 'done', label: 'Done', color: '#10b981' },
+    ];
+
+    const priorities = [
+      { value: 'low', label: 'Low', icon: '🟢' },
+      { value: 'medium', label: 'Medium', icon: '🟡' },
+      { value: 'high', label: 'High', icon: '🟠' },
+      { value: 'critical', label: 'Critical', icon: '🔴' },
+    ];
+
+    // ── Helpers ──
+    function defaultTaskForm() {
+      return { title: '', description: '', status: 'todo', priority: 'medium', assignee: '', due_date: '', tags: [], subtasks: [], notes: [] };
+    }
+
+    function initials(name) {
+      if (!name) return '?';
+      return name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    }
+
+    function formatDate(d) {
+      if (!d) return '';
+      const date = new Date(d + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function timeAgo(isoString) {
+      if (!isoString) return '';
+      const diff = Date.now() - new Date(isoString).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
+    }
+
+    function dueDateClass(d) {
+      if (!d) return '';
+      const today = new Date(); today.setHours(0,0,0,0);
+      const due = new Date(d + 'T00:00:00');
+      const diff = (due - today) / 86400000;
+      if (diff < 0) return 'overdue';
+      if (diff <= 3) return 'soon';
+      return '';
+    }
+
+    function tagColor(tag) {
+      const colors = ['green', 'blue', 'red', 'yellow', 'gray', ''];
+      const idx = tag.charCodeAt(0) % colors.length;
+      return colors[idx];
+    }
+
+    function priorityLabel(p) {
+      return priorities.find(x => x.value === p)?.label || p;
+    }
+
+    function statusLabel(s) {
+      return columns.find(x => x.id === s)?.label || s;
+    }
+
+    function statusColor(s) {
+      return columns.find(x => x.id === s)?.color || '#94a3b8';
+    }
+
+    function subtaskProgress(task) {
+      if (!task.subtasks || !task.subtasks.length) return 0;
+      return Math.round((task.subtasks.filter(s => s.done).length / task.subtasks.length) * 100);
+    }
+
+    function doneSubtasks(task) {
+      return task.subtasks ? task.subtasks.filter(s => s.done).length : 0;
+    }
+
+    const AVATAR_GRADIENTS = [
+      'linear-gradient(135deg,#6366f1,#8b5cf6)',
+      'linear-gradient(135deg,#10b981,#059669)',
+      'linear-gradient(135deg,#f59e0b,#d97706)',
+      'linear-gradient(135deg,#ef4444,#dc2626)',
+      'linear-gradient(135deg,#3b82f6,#2563eb)',
+      'linear-gradient(135deg,#ec4899,#db2777)',
+    ];
+    function avatarGradient(name) {
+      if (!name) return AVATAR_GRADIENTS[0];
+      return AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
+    }
+
+    // ── Toast ──
+    function toast(message, type = '') {
+      const id = Date.now();
+      toasts.value.push({ id, message, type });
+      setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, 3000);
+    }
+
+    // ── Auth ──
+    async function login() {
+      if (!loginName.value.trim()) return;
+      loading.value = true;
+      const user = { name: loginName.value.trim(), id: crypto.randomUUID() };
+      localStorage.setItem('td_user', JSON.stringify(user));
+      currentUser.value = user;
+      loading.value = false;
+      await loadData();
+    }
+
+    function logout() {
+      localStorage.removeItem('td_user');
+      currentUser.value = null;
+    }
+
+    // ── Data loading ──
+    async function loadData() {
+      try {
+        // Load tasks
+        const { data: taskList, error: taskErr } = await supabaseClient
+          .from('tasks')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (taskErr) throw taskErr;
+
+        tasks.value = (taskList || []).map(t => ({
+          ...t,
+          tags: Array.isArray(t.tags) ? t.tags : (t.tags ? JSON.parse(t.tags) : []),
+          subtasks: Array.isArray(t.subtasks) ? t.subtasks : (t.subtasks ? JSON.parse(t.subtasks) : []),
+          notes: Array.isArray(t.notes) ? t.notes : (t.notes ? JSON.parse(t.notes) : []),
+        }));
+      } catch (e) {
+        console.warn('Tasks load error:', e.message);
+        tasks.value = [];
+      }
+
+      await loadActivity();
+    }
+
+    // ── Activity log – fetches ALL team activity, no user filter ──
+    async function loadActivity() {
+      loadingActivity.value = true;
+      try {
+        const { data: activityList, error } = await supabaseClient
+          .from('activity_log')
+          .select('*')
+          .order('createdAt', { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+        activityLog.value = activityList || [];
+      } catch (e) {
+        console.warn('Activity log load error:', e.message);
+        activityLog.value = [];
+      } finally {
+        loadingActivity.value = false;
+      }
+    }
+
+    async function logActivity(action, taskTitle) {
+      try {
+        await supabaseClient.from('activity_log').insert({
+          user_name: currentUser.value.name,
+          action,
+          task_title: taskTitle,
+          createdAt: new Date().toISOString(),
+        });
+        await loadActivity();
+      } catch (e) {
+        console.warn('Activity log write error:', e.message);
+      }
+    }
+
+    // ── Computed ──
+    const filteredTasks = computed(() => {
+      let list = tasks.value;
+      if (filterStatus.value) list = list.filter(t => t.status === filterStatus.value);
+      if (filterPriority.value) list = list.filter(t => t.priority === filterPriority.value);
+      if (searchQuery.value.trim()) {
+        const q = searchQuery.value.toLowerCase();
+        list = list.filter(t =>
+          t.title.toLowerCase().includes(q) ||
+          (t.description || '').toLowerCase().includes(q) ||
+          (t.assignee || '').toLowerCase().includes(q) ||
+          (t.tags || []).some(tag => tag.toLowerCase().includes(q))
+        );
+      }
+      return list;
+    });
+
+    function tasksByStatus(status) {
+      return tasks.value.filter(t => t.status === status);
+    }
+
+    function filteredTasksByStatus(status) {
+      return filteredTasks.value.filter(t => t.status === status);
+    }
+
+    function clearFilters() {
+      filterStatus.value = null;
+      filterPriority.value = null;
+      searchQuery.value = '';
+    }
+
+    // ── Task modal ──
+    function openCreateModal() {
+      editingTask.value = null;
+      taskForm.value = defaultTaskForm();
+      newTagInput.value = '';
+      newSubtaskInput.value = '';
+      newNoteInput.value = '';
+      showTaskModal.value = true;
+    }
+
+    function openTaskDetail(task) {
+      editingTask.value = task;
+      taskForm.value = {
+        title: task.title,
+        description: task.description || '',
+        status: task.status,
+        priority: task.priority || 'medium',
+        assignee: task.assignee || '',
+        due_date: task.due_date || '',
+        tags: [...(task.tags || [])],
+        subtasks: (task.subtasks || []).map(s => ({ ...s })),
+        notes: [...(task.notes || [])],
+      };
+      newTagInput.value = '';
+      newSubtaskInput.value = '';
+      newNoteInput.value = '';
+      showTaskModal.value = true;
+    }
+
+    function closeTaskModal() {
+      showTaskModal.value = false;
+      editingTask.value = null;
+    }
+
+    // ── Tags ──
+    function addTag() {
+      const tag = newTagInput.value.trim();
+      if (tag && !taskForm.value.tags.includes(tag)) {
+        taskForm.value.tags.push(tag);
+      }
+      newTagInput.value = '';
+    }
+
+    function removeTag(tag) {
+      taskForm.value.tags = taskForm.value.tags.filter(t => t !== tag);
+    }
+
+    // ── Subtasks ──
+    function addSubtask() {
+      const title = newSubtaskInput.value.trim();
+      if (title) {
+        taskForm.value.subtasks.push({ id: Date.now(), title, done: false });
+      }
+      newSubtaskInput.value = '';
+    }
+
+    function removeSubtask(idx) {
+      taskForm.value.subtasks.splice(idx, 1);
+    }
+
+    // ── Notes ──
+    function addNote() {
+      const text = newNoteInput.value.trim();
+      if (text) {
+        taskForm.value.notes.push({
+          id: Date.now(),
+          author: currentUser.value.name,
+          text,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      newNoteInput.value = '';
+    }
+
+    // ── Save task ──
+    async function saveTask() {
+      if (!taskForm.value.title.trim()) return;
+      saving.value = true;
+      try {
+        const payload = {
+          title: taskForm.value.title.trim(),
+          description: taskForm.value.description.trim(),
+          status: taskForm.value.status,
+          priority: taskForm.value.priority,
+          assignee: taskForm.value.assignee.trim(),
+          due_date: taskForm.value.due_date || null,
+          tags: taskForm.value.tags,
+          subtasks: taskForm.value.subtasks,
+          notes: taskForm.value.notes,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (editingTask.value) {
+          const { error } = await supabaseClient
+            .from('tasks')
+            .update(payload)
+            .eq('id', editingTask.value.id);
+          if (error) throw error;
+
+          const idx = tasks.value.findIndex(t => t.id === editingTask.value.id);
+          if (idx !== -1) tasks.value[idx] = { ...editingTask.value, ...payload };
+
+          await logActivity('updated task', payload.title);
+          toast('Task updated!', 'success');
+        } else {
+          payload.created_at = new Date().toISOString();
+          const { data, error } = await supabaseClient.from('tasks').insert(payload).select().single();
+          if (error) throw error;
+
+          tasks.value.unshift({ ...payload, id: data.id });
+          await logActivity('created task', payload.title);
+          toast('Task created!', 'success');
+        }
+
+        closeTaskModal();
+      } catch (e) {
+        console.error('Save task error:', e);
+        toast(e.message || 'Error saving task', 'error');
+      } finally {
+        saving.value = false;
+      }
+    }
+
+    // ── Delete task ──
+    function deleteTask() {
+      showDeleteConfirm.value = true;
+    }
+
+    async function confirmDelete() {
+      saving.value = true;
+      try {
+        const { error } = await supabaseClient
+          .from('tasks')
+          .delete()
+          .eq('id', editingTask.value.id);
+        if (error) throw error;
+
+        const title = editingTask.value.title;
+        tasks.value = tasks.value.filter(t => t.id !== editingTask.value.id);
+        await logActivity('deleted task', title);
+        toast('Task deleted', 'success');
+        showDeleteConfirm.value = false;
+        closeTaskModal();
+      } catch (e) {
+        toast(e.message || 'Error deleting task', 'error');
+      } finally {
+        saving.value = false;
+      }
+    }
+
+    // ── Drag & drop ──
+    function onDragStart(task) {
+      draggingTaskId.value = task.id;
+    }
+
+    function onDragEnd() {
+      draggingTaskId.value = null;
+      dragOverColumn.value = null;
+    }
+
+    async function onDrop(newStatus) {
+      dragOverColumn.value = null;
+      if (!draggingTaskId.value) return;
+      const task = tasks.value.find(t => t.id === draggingTaskId.value);
+      if (!task || task.status === newStatus) return;
+
+      const oldStatus = task.status;
+      task.status = newStatus;
+
+      try {
+        const { error } = await supabaseClient
+          .from('tasks')
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('id', task.id);
+        if (error) throw error;
+        await logActivity(`moved task from ${statusLabel(oldStatus)} to ${statusLabel(newStatus)}`, task.title);
+      } catch (e) {
+        task.status = oldStatus;
+        toast('Error updating task status', 'error');
+      }
+    }
+
+    // ── Lifecycle ──
+    onMounted(async () => {
+      if (currentUser.value) {
+        await loadData();
+        activityRefreshInterval = setInterval(loadActivity, 30000);
+      }
+    });
+
+    onUnmounted(() => {
+      if (activityRefreshInterval) clearInterval(activityRefreshInterval);
+    });
+
+    return {
+      currentUser, loginName, loading, saving, loadingActivity,
+      tasks, activityLog, activeView, searchQuery, filterStatus, filterPriority,
+      showTaskModal, showDeleteConfirm, editingTask,
+      taskForm, newTagInput, newSubtaskInput, newNoteInput,
+      draggingTaskId, dragOverColumn, toasts,
+      columns, priorities,
+      login, logout,
+      filteredTasks, tasksByStatus, filteredTasksByStatus, clearFilters,
+      openCreateModal, openTaskDetail, closeTaskModal,
+      addTag, removeTag, addSubtask, removeSubtask, addNote,
+      saveTask, deleteTask, confirmDelete,
+      onDragStart, onDragEnd, onDrop,
+      initials, formatDate, timeAgo, dueDateClass, tagColor,
+      priorityLabel, statusLabel, statusColor,
+      subtaskProgress, doneSubtasks, avatarGradient,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
