@@ -4,72 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js/dist/umd/supabase-js.js"></script>
 </head>
 <body>
-<div id="app">
-    <header>
-        <h1>Team Dashboard</h1>
-    </header>
-    <main>
-        <div class="kanban-board">
-            <div class="kanban-column" v-for="column in columns" :key="column.id">
-                <h2>{{ column.title }}</h2>
-                <div class="kanban-tasks">
-                    <div class="task" v-for="task in column.tasks" :key="task.id" draggable="true" @dragstart="onDragStart(task)" @drop="onDrop(task)">
-                        <h3>{{ task.title }}</h3>
-                        <p>{{ task.description }}</p>
-                        <button @click="openTaskModal(task)">Edit</button>
-                    </div>
+    <div id="app">
+        <header>
+            <h1>Team Dashboard</h1>
+            <aside id="activity-sidebar">
+                <h2>Activity Log</h2>
+                <!-- Real-time subscriptions and activity log will be displayed here -->
+            </aside>
+        </header>
+        <main>
+            <section id="kanban">
+                <div class="column">
+                    <h2>To Do</h2>
+                    <!-- Task Cards will be dynamically generated here -->
                 </div>
+                <div class="column">
+                    <h2>In Progress</h2>
+                    <!-- Task Cards will be dynamically generated here -->
+                </div>
+                <div class="column">
+                    <h2>Done</h2>
+                    <!-- Task Cards will be dynamically generated here -->
+                </div>
+            </section>
+            <div id="task-management">
+                <h2>Manage Tasks</h2>
+                <form @submit.prevent="addTask">
+                    <input type="text" v-model="newTask.title" placeholder="Task Title" required>
+                    <textarea v-model="newTask.description" placeholder="Description"></textarea>
+                    <button type="submit">Add Task</button>
+                </form>
             </div>
-        </div>
-        <aside class="activity-log">
-            <h2>Activity Log</h2>
-            <ul>
-                <li v-for="activity in activities" :key="activity.id">{{ activity.description }}</li>
-            </ul>
-        </aside>
-    </main>
-    <footer>
-        <p>© 2026 Team Dashboard</p>
-    </footer>
-</div>
-<script>
-const { createClient } = supabase;
-const supabaseUrl = 'https://emmjvepuzllxchgtkao.supabase.co';
-const supabaseKey = 'YOUR_EXISTING_SUPABASE_KEY'; // This should be updated with the actual key
-const supabase = createClient(supabaseUrl, supabaseKey);
+        </main>
+    </div>
+    <script>
+        const { createApp } = Vue;
+        const { createClient } = supabase;
+        const supabaseUrl = 'https://emmjvepuzllxchgtkao.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtbWp2ZXB1emxsbHhjaGd0a2FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzU4NDIsImV4cCI6MjA4ODkxMTg0Mn0.iEOCAxrXC74j79E1zYTPSVSclleUCEaijn-feMeU0TU';
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-new Vue({
-    el: '#app',
-    data() {
-        return {
-            columns: [],
-            activities: []
-        };
-    },
-    methods: {
-        async fetchTasks() {
-            const { data, error } = await supabase.from('tasks').select('*');
-            this.columns = data;
-        },
-        onDragStart(task) {
-            // Handle drag start
-        },
-        onDrop(task) {
-            // Handle drop
-        },
-        openTaskModal(task) {
-            // Open modal to edit task
-        },
-    },
-    mounted() {
-        this.fetchTasks();
-    }
-});
-</script>
+        createApp({
+            data() {
+                return {
+                    newTask: { title: '', description: '' },
+                    tasks: []
+                };
+            },
+            methods: {
+                addTask() {
+                    // Logic to add task to Kanban and save it to Supabase
+                }
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>
