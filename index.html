@@ -4,154 +4,72 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team Dashboard</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body {
-            background-color: #f5f7fa;
-            font-family: Arial, sans-serif;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-        }
-        .card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin: 10px 0;
-            padding: 15px;
-        }
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.3);
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.js"></script>
 </head>
 <body>
-    <div id="app">
-        <div class="card">
-            <h1>My Dashboard</h1>
-            <div>Task Statistics:</div>
-            <div>Total Tasks: {{ myTasksCount }}</div>
-            <div>In Progress: {{ myInProgressCount }}</div>
-            <div>Overdue: {{ myOverdueCount }}</div>
-            <div>Due Soon: {{ myDueSoonCount }}</div>
-            <div>Priority Tasks: {{ myPriorityTasks.length }}</div>
-            <button @click="openTaskModal">Add Task</button>
-        </div>
-        <div class="grid">
-            <div class="card" v-for="task in getTodoTasks" :key="task.id">
-                <h3>To Do: {{ task.title }}</h3>
-                <div>
-                    <button @click="cycleStatus(task)">Start Task</button>
+<div id="app">
+    <header>
+        <h1>Team Dashboard</h1>
+    </header>
+    <main>
+        <div class="kanban-board">
+            <div class="kanban-column" v-for="column in columns" :key="column.id">
+                <h2>{{ column.title }}</h2>
+                <div class="kanban-tasks">
+                    <div class="task" v-for="task in column.tasks" :key="task.id" draggable="true" @dragstart="onDragStart(task)" @drop="onDrop(task)">
+                        <h3>{{ task.title }}</h3>
+                        <p>{{ task.description }}</p>
+                        <button @click="openTaskModal(task)">Edit</button>
+                    </div>
                 </div>
             </div>
-            <div class="card" v-for="task in getInProgressTasks" :key="task.id">
-                <h3>In Progress: {{ task.title }}</h3>
-            </div>
-            <div class="card" v-for="task in getCompletedTasks" :key="task.id">
-                <h3>Completed: {{ task.title }}</h3>
-            </div>
         </div>
-        <div class="modal" v-if="isTaskModalOpen">
-            <div class="modal-content">
-                <span @click="closeTaskModal">&times;</span>
-                <h2>{{ currentTask ? 'Edit Task' : 'Add Task' }}</h2>
-                <input type="text" v-model="currentTask.title" placeholder="Task Title" />
-                <button @click="currentTask ? updateTask() : addAssignment()">Save</button>
-            </div>
-        </div>
-    </div>
-    <script>
-        const { createApp } = Vue;
-        const { createClient } = supabase;
+        <aside class="activity-log">
+            <h2>Activity Log</h2>
+            <ul>
+                <li v-for="activity in activities" :key="activity.id">{{ activity.description }}</li>
+            </ul>
+        </aside>
+    </main>
+    <footer>
+        <p>© 2026 Team Dashboard</p>
+    </footer>
+</div>
+<script>
+const { createClient } = supabase;
+const supabaseUrl = 'https://emmjvepuzllxchgtkao.supabase.co';
+const supabaseKey = 'YOUR_EXISTING_SUPABASE_KEY'; // This should be updated with the actual key
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const supabaseUrl = 'https://emmjvepuzlllxchgtkao.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtbWp2ZXB1emxsbHhjaGd0a2FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzU4NDIsImV4cCI6MjA4ODkxMTg0Mn0.iEOCAxrXC74j79E1zYTPSVSclleUCEaijn-feMeU0TU';
-        const supabase = createClient(supabaseUrl, supabaseKey);
-
-        createApp({
-            data() {
-                return {
-                    tasks: [],
-                    isTaskModalOpen: false,
-                    currentTask: null,
-                };
-            },
-            computed: {
-                myTasks() {
-                    return this.tasks.filter(task => task.assignedTo === 'currentUserId');
-                },
-                myTasksCount() {
-                    return this.myTasks.length;
-                },
-                myInProgressCount() {
-                    return this.tasks.filter(task => task.status === 'in-progress').length;
-                },
-                myOverdueCount() {
-                    return this.tasks.filter(task => new Date(task.dueDate) < new Date()).length;
-                },
-                myDueSoonCount() {
-                    return this.tasks.filter(task => new Date(task.dueDate) <= new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)).length;
-                },
-                myPriorityTasks() {
-                    return this.tasks.filter(task => task.priority);
-                },
-                getTodoTasks() {
-                    return this.tasks.filter(task => task.status === 'todo');
-                },
-                getInProgressTasks() {
-                    return this.tasks.filter(task => task.status === 'in-progress');
-                },
-                getCompletedTasks() {
-                    return this.tasks.filter(task => task.status === 'completed');
-                },
-            },
-            methods: {
-                async loadData() {
-                    const { data } = await supabase
-                        .from('tasks')
-                        .select('*');
-                    this.tasks = data;
-                },
-                subscribeToChanges() {
-                    // Subscribe to changes in tasks
-                },
-                addAssignment() {
-                    // Logic for adding an assignment
-                },
-                deleteAssignment(id) {
-                    // Logic for deleting an assignment
-                },
-                cycleStatus(task) {
-                    // Cycle through statuses
-                },
-                openTaskModal() {
-                    this.isTaskModalOpen = true;
-                    this.currentTask = null;
-                },
-                closeTaskModal() {
-                    this.isTaskModalOpen = false;
-                },
-                // More methods...
-            },
-            mounted() {
-                this.loadData();
-                this.subscribeToChanges();
-            },
-        }).mount('#app');
-    </script>
+new Vue({
+    el: '#app',
+    data() {
+        return {
+            columns: [],
+            activities: []
+        };
+    },
+    methods: {
+        async fetchTasks() {
+            const { data, error } = await supabase.from('tasks').select('*');
+            this.columns = data;
+        },
+        onDragStart(task) {
+            // Handle drag start
+        },
+        onDrop(task) {
+            // Handle drop
+        },
+        openTaskModal(task) {
+            // Open modal to edit task
+        },
+    },
+    mounted() {
+        this.fetchTasks();
+    }
+});
+</script>
 </body>
 </html>
